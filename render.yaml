@@ -1,0 +1,11 @@
+# Render deployment config for the maptoposter API.
+# Render reads this file automatically when you create a Blueprint service.
+services:
+  - type: web
+    name: maptoposter-api
+    runtime: python
+    plan: pro
+    buildCommand: pip install -r requirements-api.txt
+    # Run from the repo root so the generator finds themes/, fonts/, cache/.
+    startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
