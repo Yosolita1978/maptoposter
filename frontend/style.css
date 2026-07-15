@@ -1,0 +1,274 @@
+/* Map to Poster — frontend styles.
+   Dark, minimalist look that echoes the posters the tool produces. */
+
+:root {
+  --bg: #0d0d0f;
+  --card: #16161a;
+  --line: #2a2a30;
+  --text: #f2f0ea;
+  --muted: #8a8a92;
+  --accent: #d98a5f;      /* warm terracotta, nods to the default theme */
+  --accent-dark: #b8653a;
+  --error-bg: #2a1414;
+  --error-text: #f0a0a0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 48px 20px 64px;
+}
+
+/* Header */
+.intro {
+  text-align: center;
+  margin-bottom: 36px;
+}
+
+.intro h1 {
+  font-size: clamp(28px, 7vw, 44px);
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  margin: 0 0 10px;
+}
+
+.tagline {
+  color: var(--muted);
+  margin: 0;
+  font-size: 15px;
+}
+
+/* Form card */
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+
+input[type="text"],
+select {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 12px 14px;
+  font-size: 15px;
+  font-family: inherit;
+}
+
+input[type="text"]:focus,
+select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Slider */
+.slider-wrap {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+input[type="range"] {
+  flex: 1;
+  accent-color: var(--accent);
+}
+
+.slider-value {
+  min-width: 52px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* Generate button */
+.generate {
+  margin-top: 6px;
+  background: var(--accent);
+  color: #1a1109;
+  border: none;
+  border-radius: 8px;
+  padding: 14px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.generate:hover {
+  background: var(--accent-dark);
+}
+
+.generate:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Status area */
+.status {
+  margin-top: 28px;
+}
+
+.working {
+  text-align: center;
+  padding: 24px;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  margin: 0 auto 18px;
+  border: 3px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.working-text {
+  font-size: 17px;
+  margin: 0 0 4px;
+}
+
+.working-phase {
+  color: var(--accent);
+  font-size: 14px;
+  margin: 0 0 10px;
+}
+
+.elapsed {
+  color: var(--text);
+  font-size: 24px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  margin: 0 0 14px;
+}
+
+.working-sub {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0 auto 12px;
+  max-width: 360px;
+}
+
+.working-tip {
+  color: var(--muted);
+  font-size: 13px;
+  font-style: italic;
+  margin: 0;
+  min-height: 18px;
+  transition: opacity 0.3s ease;
+}
+
+.working-long {
+  color: var(--accent);
+  font-size: 13px;
+  margin: 14px auto 0;
+  max-width: 360px;
+}
+
+/* Error */
+.error {
+  background: var(--error-bg);
+  color: var(--error-text);
+  border-radius: 8px;
+  padding: 16px;
+  font-size: 14px;
+  text-align: center;
+}
+
+/* Result */
+.result {
+  text-align: center;
+}
+
+.preview {
+  max-width: 100%;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  margin-bottom: 18px;
+}
+
+.download {
+  display: inline-block;
+  background: var(--accent);
+  color: #1a1109;
+  text-decoration: none;
+  padding: 12px 22px;
+  border-radius: 8px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.download:hover {
+  background: var(--accent-dark);
+}
+
+.again {
+  display: block;
+  margin: 14px auto 0;
+  background: none;
+  border: none;
+  color: var(--muted);
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+/* Credit footer */
+.credit {
+  margin-top: 48px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  border-top: 1px solid var(--line);
+  padding-top: 24px;
+}
+
+.credit a {
+  color: var(--accent);
+}
+
+.credit strong {
+  color: var(--text);
+}
+
+.credit-sub {
+  margin-top: 8px;
+  font-size: 12px;
+}

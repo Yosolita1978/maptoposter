@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Map to Poster — generate a minimalist city map poster</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="wrap">
+    <header class="intro">
+      <h1>MAP&nbsp;TO&nbsp;POSTER</h1>
+      <p class="tagline">Turn any city in the world into a minimalist map poster.</p>
+    </header>
+
+    <!-- The form. On submit we call the API and start polling. -->
+    <form id="poster-form" class="card">
+      <div class="row">
+        <label for="city">City</label>
+        <input id="city" name="city" type="text" placeholder="e.g. Lisbon" required maxlength="100" />
+      </div>
+
+      <div class="row">
+        <label for="country">Country</label>
+        <input id="country" name="country" type="text" placeholder="e.g. Portugal" required maxlength="100" />
+      </div>
+
+      <div class="row">
+        <label for="theme">Theme</label>
+        <!-- Filled in from GET /themes when the page loads. -->
+        <select id="theme" name="theme">
+          <option value="terracotta">Loading themes…</option>
+        </select>
+      </div>
+
+      <div class="row">
+        <label for="format">Format</label>
+        <select id="format" name="format">
+          <option value="png">PNG (image)</option>
+          <option value="svg">SVG (vector)</option>
+          <option value="pdf">PDF (print)</option>
+        </select>
+      </div>
+
+      <div class="row">
+        <label for="distance">Map radius</label>
+        <div class="slider-wrap">
+          <input id="distance" name="distance" type="range" min="4000" max="30000" step="1000" value="18000" />
+          <span id="distance-value" class="slider-value">18 km</span>
+        </div>
+      </div>
+
+      <button id="generate-btn" type="submit" class="generate">Generate poster</button>
+    </form>
+
+    <!-- Status area: spinner while working, error, or the finished poster. -->
+    <section id="status" class="status" hidden>
+      <div id="working" class="working" hidden>
+        <div class="spinner" aria-hidden="true"></div>
+        <p id="working-title" class="working-text">Building your poster…</p>
+        <p id="working-phase" class="working-phase">Starting…</p>
+        <p id="elapsed" class="elapsed">0:00</p>
+        <p class="working-sub">A brand-new city downloads its full map data from OpenStreetMap, so this can take a few minutes. Repeat cities are cached and come back in seconds. Please keep this tab open.</p>
+        <p id="working-tip" class="working-tip"></p>
+        <p id="working-long" class="working-long" hidden>Still working — large cities at a wide radius can take 5 minutes or more. This is normal, not stuck.</p>
+      </div>
+
+      <div id="error" class="error" hidden></div>
+
+      <div id="result" class="result" hidden>
+        <img id="preview" class="preview" alt="Generated map poster" />
+        <a id="download" class="download" download>Download poster</a>
+        <button id="again" type="button" class="again">Make another</button>
+      </div>
+    </section>
+
+    <!-- Credit to the original creator. Kept prominent and permanent. -->
+    <footer class="credit">
+      <p>
+        Poster generator created by <strong>Ankur Gupta</strong> —
+        <a href="https://github.com/originalankur/maptoposter" target="_blank" rel="noopener">original project on GitHub</a>,
+        released under the MIT License.
+      </p>
+      <p class="credit-sub">
+        Web app built by <a href="https://www.yosola.co/" target="_blank" rel="noopener">Cristina Rodriguez</a>.
+      </p>
+      <p class="credit-sub">Map data © OpenStreetMap contributors.</p>
+    </footer>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
