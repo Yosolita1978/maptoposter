@@ -328,15 +328,38 @@ def get_coordinates(city, country):
         return cached
 
     print("Looking up coordinates...")
-    geolocator = Nominatim(user_agent="city_map_poster", timeout=10)
+    # An identifying User-Agent is requested by Nominatim's usage policy.
+    geolocator = Nominatim(
+        user_agent="maptoposter-web/1.0 (+https://www.yosola.co)", timeout=10
+    )
 
-    # Add a small delay to respect Nominatim's usage policy
-    time.sleep(1)
-
-    try:
-        location = geolocator.geocode(f"{city}, {country}")
-    except Exception as e:
-        raise ValueError(f"Geocoding failed for {city}, {country}: {e}") from e
+    # Nominatim (the free OpenStreetMap geocoder) rate-limits heavy/cloud use
+    # and can return HTTP 429. Retry a few times with a growing backoff before
+    # giving up, so a temporary limit doesn't fail the whole job.
+    max_attempts = 3
+    location = None
+    last_error = None
+    for attempt in range(1, max_attempts + 1):
+        # A short delay before each call respects the ~1 request/second policy.
+        time.sleep(1)
+        try:
+            location = geolocator.geocode(f"{city}, {country}")
+            break  # Success. location may still be None if the city is unknown.
+        except Exception as e:
+            last_error = e
+            if attempt < max_attempts:
+                wait = attempt * 3  # 3s, then 6s
+                print(
+                    f"⚠ Geocoding attempt {attempt} failed ({e}); "
+                    f"retrying in {wait}s..."
+                )
+                time.sleep(wait)
+    else:
+        # Every attempt raised an exception (e.g. sustained 429 rate limiting).
+        raise ValueError(
+            f"Geocoding failed for {city}, {country} "
+            f"after {max_attempts} attempts: {last_error}"
+        ) from last_error
 
     # If geocode returned a coroutine in some environments, run it to get the result.
     if asyncio.iscoroutine(location):

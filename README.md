@@ -397,3 +397,29 @@ G = ox.graph_from_point(point, dist=dist, network_type='walk')   # pedestrian
 - Cache coordinates locally to avoid Nominatim rate limits
 - Use `network_type='drive'` instead of `'all'` for faster renders
 - Reduce `dpi` from 300 to 150 for quick previews
+
+## Future Options
+
+### Keyed geocoding provider (for higher / public traffic)
+
+The app currently geocodes city names with **Nominatim**, OpenStreetMap's free,
+no-signup service. It's shared by everyone and rate-limits heavy or cloud-hosted
+use, so under real traffic it can return HTTP 429 ("Too Many Requests"). The
+web backend mitigates this today with a retry-and-backoff and a coordinate cache
+(see `get_coordinates()` in `create_map_poster.py`).
+
+If 429s become common as traffic grows, the durable fix is a **keyed geocoding
+provider** — a service where you sign up, get an API key, and send it with each
+request so you get your *own* private quota instead of sharing the free public
+pool. Several are built on the same OpenStreetMap data and have free tiers:
+**LocationIQ**, **Geoapify**, **OpenCage** (also **Mapbox**, **Google Maps**).
+
+To adopt one later:
+
+1. Sign up and get an API key.
+2. Store the key as an environment variable on the host (e.g. a Render
+   environment variable) — never commit it to the repo.
+3. Swap the ~10 lines in `get_coordinates()` to call the provider's API with
+   that key, keeping the existing cache and retry logic.
+
+Not needed for personal / low-traffic use; the retry + cache handle that fine.

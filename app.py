@@ -72,6 +72,10 @@ MAX_PENDING_JOBS = 20
 JOBS: dict[str, dict] = {}
 JOBS_LOCK = threading.Lock()
 
+# Monotonically increasing number stamped on each job as it arrives, so we can
+# tell which queued job came first and report a "you are #N in line" position.
+JOB_SEQ = 0
+
 # Work queue and the single worker thread that drains it.
 WORK_QUEUE: "queue.Queue[str]" = queue.Queue()
 _worker_stop = threading.Event()
@@ -208,9 +212,12 @@ def generate(req: GenerateRequest) -> dict:
         )
 
     job_id = uuid.uuid4().hex
+    global JOB_SEQ
     with JOBS_LOCK:
+        JOB_SEQ += 1
         JOBS[job_id] = {
             "status": "queued",
+            "seq": JOB_SEQ,
             "city": req.city,
             "country": req.country,
             "theme": req.theme,
@@ -231,10 +238,24 @@ def status(job_id: str) -> dict:
         job = JOBS.get(job_id)
         if job is None:
             raise HTTPException(status_code=404, detail="unknown job_id")
+
+        # queue_position = how many jobs must finish before this one starts.
+        # 0 means it is being generated now (or already finished/failed).
+        # Counts the job currently running plus any earlier-queued jobs.
+        position = 0
+        if job["status"] == "queued":
+            my_seq = job["seq"]
+            for other in JOBS.values():
+                if other["status"] == "running":
+                    position += 1
+                elif other["status"] == "queued" and other["seq"] < my_seq:
+                    position += 1
+
         return {
             "job_id": job_id,
             "status": job["status"],
             "error": job["error"],
+            "queue_position": position,
         }
 
 

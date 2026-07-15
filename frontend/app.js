@@ -105,18 +105,29 @@ function formatTime(seconds) {
   return `${mins}:${secs}`;
 }
 
-// Update the phase line based on the backend's reported status.
-function setPhase(status) {
-  if (status === "queued") {
-    workingPhase.textContent = "Waiting in the queue…";
-  } else {
+// Rough average time one poster takes, used only for a ballpark queue estimate.
+const EST_MIN_PER_JOB = 4;
+
+// Update the phase line from the backend's status and queue position.
+function updatePhase(status, position) {
+  if (status === "running") {
     workingPhase.textContent = "Downloading map data & rendering…";
+  } else if (status === "queued") {
+    if (typeof position === "number" && position > 0) {
+      const estMin = position * EST_MIN_PER_JOB;
+      workingPhase.textContent =
+        `You're #${position} in line — roughly ${estMin} min estimated wait.`;
+    } else {
+      workingPhase.textContent = "Next in line — starting shortly…";
+    }
+  } else {
+    workingPhase.textContent = "Submitting…";
   }
 }
 
 function startWorking(cityName) {
   workingTitle.textContent = `Generating your ${cityName} poster…`;
-  setPhase("queued");
+  updatePhase("submitting");
   workingLong.hidden = true;
 
   // Elapsed clock, plus the long-wait note once we cross the threshold.
@@ -175,9 +186,12 @@ async function pollJob(jobId, outputFormat) {
 
   if (data.status === "error") {
     stopWorking();
-    const detail = data.error || "";
-    // A geocoding failure usually means the city/country wasn't recognised.
-    if (detail.toLowerCase().includes("coordinates") || detail.toLowerCase().includes("find")) {
+    const detail = (data.error || "").toLowerCase();
+    if (detail.includes("429") || detail.includes("geocoding failed")) {
+      // The OpenStreetMap geocoder rate-limited us or was unreachable.
+      showError("The map service (OpenStreetMap) is busy right now. Please wait a minute and try again.");
+    } else if (detail.includes("could not find") || detail.includes("coordinates")) {
+      // The city/country wasn't recognised.
       showError("We couldn't find that city. Check the spelling of the city and country, then try again.");
     } else {
       showError("Something went wrong while generating the poster. Please try again.");
@@ -186,7 +200,7 @@ async function pollJob(jobId, outputFormat) {
   }
 
   // Still queued or running — reflect the phase, then check again shortly.
-  setPhase(data.status);
+  updatePhase(data.status, data.queue_position);
   setTimeout(() => pollJob(jobId, outputFormat), POLL_INTERVAL);
 }
 
