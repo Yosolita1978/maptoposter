@@ -433,8 +433,10 @@ def fetch_graph(point, dist) -> MultiDiGraph | None:
     """
     Fetch street network graph from OpenStreetMap.
 
-    Uses caching to avoid redundant downloads. Fetches all network types
-    within the specified distance from the center point.
+    Uses caching to avoid redundant downloads. Fetches the 'drive' network
+    (roads, not footpaths/service ways) within the given distance. Drive-only
+    keeps memory and render time much lower for large cities while still
+    looking great at poster scale.
 
     Args:
         point: (latitude, longitude) tuple for center point
@@ -444,14 +446,16 @@ def fetch_graph(point, dist) -> MultiDiGraph | None:
         MultiDiGraph of street network, or None if fetch fails
     """
     lat, lon = point
-    graph = f"graph_{lat}_{lon}_{dist}"
+    # Network type is part of the cache key so a cached 'all' graph from an
+    # older version is not mistakenly reused for the new 'drive' network.
+    graph = f"graph_{lat}_{lon}_{dist}_drive"
     cached = cache_get(graph)
     if cached is not None:
         print("✓ Using cached street network")
         return cast(MultiDiGraph, cached)
 
     try:
-        g = ox.graph_from_point(point, dist=dist, dist_type='bbox', network_type='all', truncate_by_edge=True)
+        g = ox.graph_from_point(point, dist=dist, dist_type='bbox', network_type='drive', truncate_by_edge=True)
         # Rate limit between requests
         time.sleep(0.5)
         try:
@@ -785,13 +789,16 @@ def create_poster(
         pad_inches=0.05,
     )
 
-    # DPI matters mainly for raster formats
+    # DPI matters mainly for raster formats. Kept at 150 so a full render fits
+    # within a small (512 MB) instance; raster memory scales with DPI squared.
     if fmt == "png":
-        save_kwargs["dpi"] = 300
+        save_kwargs["dpi"] = 150
 
     plt.savefig(output_file, format=fmt, **save_kwargs)
 
-    plt.close()
+    # Close every figure so memory is released between jobs on the long-lived
+    # server process.
+    plt.close("all")
     print(f"✓ Done! Poster saved as {output_file}")
 
 

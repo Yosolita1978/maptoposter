@@ -92,7 +92,8 @@ class GenerateRequest(BaseModel):
     country: str = Field(..., min_length=1, max_length=100)
     theme: str = "terracotta"
     output_format: str = Field("png")
-    distance: int = Field(18000, ge=1000, le=30000)
+    # Capped at 12 km so a dense city's render stays within a small instance.
+    distance: int = Field(12000, ge=4000, le=12000)
     width: float = Field(12, gt=0, le=20)
     height: float = Field(16, gt=0, le=20)
 
