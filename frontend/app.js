@@ -9,12 +9,25 @@ const API_BASE = "https://maptoposter-api-3z7d.onrender.com";
 // How often to poll the status endpoint (milliseconds).
 const POLL_INTERVAL = 3000;
 
+// Map radius rules (must match FREE_RADIUS_LIMIT in the backend). Everyone may
+// pick up to FREE_RADIUS metres; the wider range up to MAX_RADIUS only unlocks
+// for "repeat" cities that have been generated before.
+const FREE_RADIUS = 18000;
+const MAX_RADIUS = 30000;
+
+// Wait this long after the last keystroke before asking the backend whether a
+// city is cached, so we don't fire a request on every character typed.
+const CACHE_CHECK_DELAY = 500;
+
 // --- Element references -----------------------------------------------------
 
 const form = document.getElementById("poster-form");
 const themeSelect = document.getElementById("theme");
+const cityInput = document.getElementById("city");
+const countryInput = document.getElementById("country");
 const distanceInput = document.getElementById("distance");
 const distanceValue = document.getElementById("distance-value");
+const radiusNote = document.getElementById("radius-note");
 const generateBtn = document.getElementById("generate-btn");
 
 const statusSection = document.getElementById("status");
@@ -48,6 +61,53 @@ const againBtn = document.getElementById("again");
 function updateDistanceLabel() {
   const km = Math.round(Number(distanceInput.value) / 1000);
   distanceValue.textContent = `${km} km`;
+}
+
+// Raise or lower the slider's maximum depending on whether the current city is
+// a repeat. Wider radii (up to MAX_RADIUS) only unlock for cached cities.
+function setWideRadiusUnlocked(unlocked) {
+  if (unlocked) {
+    distanceInput.max = String(MAX_RADIUS);
+    radiusNote.textContent = "Wide radius unlocked — this city has been generated before.";
+    radiusNote.classList.add("unlocked");
+  } else {
+    distanceInput.max = String(FREE_RADIUS);
+    // If the slider was previously above the free limit, pull it back down.
+    if (Number(distanceInput.value) > FREE_RADIUS) {
+      distanceInput.value = String(FREE_RADIUS);
+      updateDistanceLabel();
+    }
+    radiusNote.textContent =
+      "Radius above 18 km unlocks once a city has been generated before.";
+    radiusNote.classList.remove("unlocked");
+  }
+}
+
+// Ask the backend whether the typed city is a repeat (cached). Both fields must
+// be filled. Any failure just leaves the radius capped — the safe default.
+async function refreshRadiusLock() {
+  const city = cityInput.value.trim();
+  const country = countryInput.value.trim();
+  if (!city || !country) {
+    setWideRadiusUnlocked(false);
+    return;
+  }
+  try {
+    const url = `${API_BASE}/is-cached?city=${encodeURIComponent(city)}&country=${encodeURIComponent(country)}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    setWideRadiusUnlocked(Boolean(data.cached));
+  } catch {
+    setWideRadiusUnlocked(false);
+  }
+}
+
+// Debounced wrapper so we only check after the user stops typing.
+let cacheCheckTimer = null;
+function scheduleRadiusLockCheck() {
+  if (cacheCheckTimer) clearTimeout(cacheCheckTimer);
+  cacheCheckTimer = setTimeout(refreshRadiusLock, CACHE_CHECK_DELAY);
 }
 
 // Turn a theme filename ("neon_cyberpunk") into a nicer label ("Neon Cyberpunk").
@@ -274,6 +334,24 @@ async function handleSubmit(event) {
     return;
   }
 
+  // 422 for an oversized radius on a brand-new city: re-lock the slider and
+  // explain, using the backend's own message when available.
+  if (res.status === 422) {
+    stopWorking();
+    setWideRadiusUnlocked(false);
+    let message =
+      "A wider radius is only available for cities generated before. " +
+      "Generate this city once at 18 km or less, then try again.";
+    try {
+      const data = await res.json();
+      if (data && data.detail) message = data.detail;
+    } catch {
+      // Keep the default message if the body isn't JSON.
+    }
+    showError(message);
+    return;
+  }
+
   if (!res.ok) {
     stopWorking();
     showError("The server rejected the request. Please check your inputs and try again.");
@@ -288,6 +366,9 @@ async function handleSubmit(event) {
 
 distanceInput.addEventListener("input", updateDistanceLabel);
 form.addEventListener("submit", handleSubmit);
+// When the city or country changes, re-check whether the wide radius unlocks.
+cityInput.addEventListener("input", scheduleRadiusLockCheck);
+countryInput.addEventListener("input", scheduleRadiusLockCheck);
 againBtn.addEventListener("click", () => {
   statusSection.hidden = true;
 });

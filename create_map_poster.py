@@ -108,6 +108,22 @@ def cache_set(key: str, value):
         raise CacheError(f"Cache write failed: {e}") from e
 
 
+def is_city_cached(city, country) -> bool:
+    """
+    Return True if this city has already been generated at least once.
+
+    The first successful generation of any city caches its coordinates at
+    coords_{city}_{country}.pkl (see get_coordinates). The presence of that
+    cache file is therefore a cheap, reliable signal that the city is a
+    "repeat" — no geocoding or network call is needed to check.
+
+    The web API uses this to decide whether a map radius wider than the
+    default limit should be unlocked for a given city.
+    """
+    coords_key = f"coords_{city.lower()}_{country.lower()}"
+    return os.path.exists(_cache_path(coords_key))
+
+
 # Font loading now handled by font_management.py module
 
 

@@ -112,6 +112,16 @@ input[type="range"] {
   font-size: 14px;
 }
 
+.radius-note {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.radius-note.unlocked {
+  color: var(--accent);
+}
+
 /* Generate button */
 .generate {
   margin-top: 6px;

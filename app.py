@@ -67,6 +67,11 @@ MEDIA_TYPES = {
 # endpoint cannot be flooded into an ever-growing backlog.
 MAX_PENDING_JOBS = 20
 
+# Map radius (in metres) that anyone may request. A wider radius means a much
+# heavier download from OpenStreetMap, so we only unlock it for "repeat" cities
+# that have already been generated at least once (their coordinates are cached).
+FREE_RADIUS_LIMIT = 18000
+
 # In-memory job store. Access is guarded by JOBS_LOCK because the web thread
 # and the worker thread both touch it.
 JOBS: dict[str, dict] = {}
@@ -192,6 +197,18 @@ def themes() -> dict:
     return {"themes": AVAILABLE_THEMES}
 
 
+@app.get("/is-cached")
+def is_cached(city: str, country: str) -> dict:
+    """
+    Report whether a city has been generated before.
+
+    The frontend calls this to decide whether to unlock map radii wider than
+    FREE_RADIUS_LIMIT. A city counts as a "repeat" once its coordinates are
+    cached, which happens on its first successful generation.
+    """
+    return {"cached": cmp.is_city_cached(city, country)}
+
+
 @app.post("/generate")
 def generate(req: GenerateRequest) -> dict:
     output_format = req.output_format.lower()
@@ -209,6 +226,22 @@ def generate(req: GenerateRequest) -> dict:
         raise HTTPException(
             status_code=429,
             detail="Server is busy. Please try again in a minute.",
+        )
+
+    # A radius wider than the free limit is only allowed for repeat cities —
+    # ones that have already been generated once (and so are cached). This
+    # backend check enforces the rule even if the frontend cap is bypassed.
+    if req.distance > FREE_RADIUS_LIMIT and not cmp.is_city_cached(
+        req.city, req.country
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"A map radius above {FREE_RADIUS_LIMIT // 1000} km is only "
+                "available for cities that have been generated before. "
+                f"Generate this city once at {FREE_RADIUS_LIMIT // 1000} km "
+                "or less, then try a wider radius."
+            ),
         )
 
     job_id = uuid.uuid4().hex
