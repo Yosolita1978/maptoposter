@@ -5,6 +5,78 @@ Generate beautiful, minimalist map posters for any city in the world.
 <img src="posters/singapore_neon_cyberpunk_20260118_153328.png" width="250">
 <img src="posters/dubai_midnight_blue_20260118_140807.png" width="250">
 
+## Web app (this fork)
+
+This fork wraps the original command-line generator in a small public web app, so
+anyone can make a poster from the browser — no Python, no install.
+
+- **Try it:** <https://maptoposter-two.vercel.app/>
+- **Frontend:** plain HTML/CSS/JS in [`frontend/`](frontend/), hosted on Vercel.
+- **Backend:** a thin FastAPI wrapper, [`app.py`](app.py), hosted on Render. It does
+  **not** reimplement any poster logic — it imports `create_map_poster.py` and calls
+  the same functions the CLI uses.
+
+The backend runs one poster at a time on a single background worker (matplotlib
+isn't thread-safe, and it keeps OpenStreetMap requests polite), tracking jobs in an
+in-memory queue and reporting your position in line while you wait.
+
+### Map radius: free limit and "repeat city" unlock
+
+A wider map radius means a much heavier download from OpenStreetMap. To keep the
+shared public server responsive, the web app limits how wide a **brand-new** city
+can go:
+
+- Any city may be generated up to **18 km** radius (`FREE_RADIUS_LIMIT` in `app.py`).
+- A radius **above 18 km (up to 30 km)** only unlocks for a **repeat city** — one
+  that has already been generated at least once, so its coordinates are cached on
+  the server.
+
+How it works in practice:
+
+1. The first time you enter a city, the radius slider is capped at 18 km. Generate
+   it once and its coordinates get cached.
+2. Enter that same city again and the slider unlocks up to 30 km.
+
+This is enforced in two layers so it can't be bypassed by calling the API directly:
+
+- **Frontend** ([`frontend/app.js`](frontend/app.js)) asks the backend whether the
+  typed city is cached and raises the slider's maximum only when it is.
+- **Backend** (`app.py`) rejects any `/generate` request above 18 km for a
+  non-cached city with a `422` and a clear message.
+
+> **Note:** the street-network cache is keyed by the exact radius, so a repeat city
+> at a *wider* radius is still a fresh download. This rule gates *who* can request a
+> wide radius (cities tried at least once), not the cost of that specific render.
+
+### Web API endpoints
+
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| `GET`  | `/health` | Liveness check |
+| `GET`  | `/themes` | List available theme names |
+| `GET`  | `/is-cached?city=&country=` | `{"cached": true\|false}` — is this a repeat city? |
+| `POST` | `/generate` | Start a job, returns `{"job_id": ...}` |
+| `GET`  | `/status/{job_id}` | `queued` / `running` / `done` / `error` + queue position |
+| `GET`  | `/result/{job_id}` | The finished poster file |
+
+### Run the web app locally
+
+```bash
+# 1. Install the web API dependencies (this pulls in the generator's deps too)
+pip install -r requirements-api.txt
+
+# 2. Start the API from the project root (so it finds themes/, fonts/, cache/)
+uvicorn app:app --reload --port 8000
+
+# 3. Serve the static frontend in another terminal
+cd frontend && python -m http.server 5173
+```
+
+Then open <http://localhost:5173>. To point the frontend at your local API, set
+`API_BASE` in [`frontend/app.js`](frontend/app.js) to `http://127.0.0.1:8000`.
+
+The command-line tool below is unchanged and still works exactly as before.
+
 ## Examples
 
 | Country      | City           | Theme           | Poster |
